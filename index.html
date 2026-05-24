@@ -83,7 +83,7 @@
     content: '';
     position: fixed;
     inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctave[...]
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
     pointer-events: none;
     z-index: 0;
     opacity: 0.28;
@@ -998,4 +998,2568 @@
 
     .dashboard-shell,
     .tab-panel,
-[...]
+    body.printing-report .tab-panel {
+      display: block !important;
+    }
+
+    .chart-card,
+    .stat-card,
+    .suggestion-item,
+    .insight-box {
+      background: #fff !important;
+      border-color: #ccc !important;
+      color: #111 !important;
+      box-shadow: none !important;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .charts-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .charts-grid.full {
+      grid-template-columns: 1fr;
+    }
+
+    .chart-wrap {
+      height: 220px !important;
+    }
+
+    .compare-table {
+      color: #111 !important;
+      min-width: 0;
+      font-size: 10px;
+    }
+
+    .compare-table th,
+    .compare-table td {
+      border-color: #ddd !important;
+      color: #111 !important;
+      padding: 5px 6px;
+    }
+
+    .suggestions-list {
+      max-height: none;
+      overflow: visible;
+    }
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="header">
+    <div class="header-left">
+      <div class="badge">Live Sheet Analysis</div>
+      <h1>Faculty Feedback Dashboard</h1>
+      <p id="headerSummary">Paste a public Google Sheets link, direct CSV link, or direct XLSX link to build the dashboard from student response rows.</p>
+      <div class="rating-legend">
+        <span class="rating-item score-low">1 = Poor</span>
+        <span class="rating-item score-low">2 = Below Average</span>
+        <span class="rating-item score-mid">3 = Average</span>
+        <span class="rating-item score-high">4 = Good</span>
+        <span class="rating-item score-high">5 = Excellent</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="secondary theme-toggle" id="themeToggleBtn" type="button" aria-pressed="false">Switch to dark</button>
+    </div>
+  </div>
+
+  <section class="source-panel">
+    <div class="source-row">
+      <input id="sourceLink" type="url" placeholder="Paste Google Sheets, CSV, or XLSX online link here">
+      <button class="primary" id="loadBtn" type="button">Load Sheet</button>
+      <button class="secondary" id="refreshBtn" type="button" disabled>Refresh</button>
+      <button class="secondary" id="exportPdfBtn" type="button" disabled>Export PDF</button>
+      <button class="danger" id="clearBtn" type="button">Clear</button>
+    </div>
+    <div class="status" id="statusBox"></div>
+  </section>
+
+  <details class="mapping-panel" id="mappingPanel" hidden>
+    <summary>
+      Column mapping
+      <span class="mapping-summary" id="mappingSummary"></span>
+    </summary>
+    <div class="mapping-grid">
+      <div class="field">
+        <label for="facultyColumnSelect">Faculty Name Column</label>
+        <select id="facultyColumnSelect"></select>
+      </div>
+      <div class="field">
+        <label for="classColumnSelect">Class / Course Column</label>
+        <select id="classColumnSelect"></select>
+      </div>
+      <div class="field">
+        <label for="suggestionColumnSelect">Suggestion / Comment Column</label>
+        <select id="suggestionColumnSelect"></select>
+      </div>
+    </div>
+    <div class="rating-column-box">
+      <div class="rating-title">Rating Question Columns</div>
+      <div class="rating-checks" id="ratingColumnChecks"></div>
+    </div>
+    <div class="panel-actions">
+      <button class="primary" id="applyMappingBtn" type="button">Apply Mapping</button>
+      <button id="autoDetectBtn" type="button">Auto-detect Again</button>
+    </div>
+  </details>
+
+  <section class="filter-panel" id="filterPanel" hidden>
+    <div class="filter-header">
+      <div>
+        <div class="filter-title">Filters</div>
+        <div class="helper-text">Charts, tables, and suggestions recalculate from the filtered raw rows.</div>
+      </div>
+      <button id="resetFiltersBtn" type="button">Reset Filters</button>
+    </div>
+    <div class="filter-grid">
+      <div class="filter-field">
+        <label for="facultyFilter">Faculty Name</label>
+        <select id="facultyFilter"></select>
+      </div>
+      <div class="filter-field">
+        <label for="classFilter">Class / Course Name</label>
+        <select id="classFilter"></select>
+      </div>
+    </div>
+  </section>
+
+  <main class="dashboard-shell" id="dashboardShell" hidden>
+    <div class="stats-grid" id="statsGrid"></div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="overview" type="button">Overview</button>
+      <button class="tab-btn" data-tab="deep-analysis" type="button">Deep Analysis</button>
+      <button class="tab-btn" data-tab="heatmap" type="button">Criteria Heatmap</button>
+      <button class="tab-btn" data-tab="comparison" type="button">Faculty Comparison</button>
+      <button class="tab-btn" data-tab="course" type="button">Faculty x Course</button>
+      <button class="tab-btn" data-tab="suggestions" type="button">Suggestions</button>
+    </div>
+
+    <div class="tab-panel active" id="tab-overview">
+      <div class="overview-grid">
+        <div class="overview-card">
+          <h3>Core Strengths<span>Highest rated criteria</span></h3>
+          <div class="overview-list" id="strengthsList"></div>
+        </div>
+        <div class="overview-card">
+          <h3>Critical Focus Areas<span>Lowest rated criteria</span></h3>
+          <div class="overview-list" id="focusAreasList"></div>
+        </div>
+      </div>
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="card-title">Overall Student Rating Distribution<span>Count of students by average rating</span></div>
+          <div class="chart-wrap" style="height:320px"><canvas id="overviewDistChart"></canvas></div>
+          <p class="scale-note">Each student response row is bucketed by its average rating across the selected criteria.</p>
+        </div>
+        <div class="chart-card">
+          <div class="card-title">Top / Bottom Criteria<span>Average ratings for the strongest and weakest questions</span></div>
+          <div class="chart-wrap" style="height:320px"><canvas id="overviewCriteriaChart"></canvas></div>
+          <p class="scale-note">Bars are pulled from the highest and lowest average criteria so the overview stays compact.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-deep-analysis">
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="card-title">Score Frequency Histogram<span>Count of students by average rating</span></div>
+          <div class="chart-wrap" style="height:240px"><canvas id="deepDistChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="card-title">Faculty Performance Radar<span>Average by detected feedback dimension</span></div>
+          <div class="chart-wrap" style="height:240px"><canvas id="catRadarChart"></canvas></div>
+        </div>
+      </div>
+        <div class="charts-grid full" id="categoryCards"></div>
+    </div>
+
+    <div class="tab-panel" id="tab-heatmap">
+      <div class="heatmap-panel">
+        <h3>Criteria Heatmap<span>Average ratings by criterion and faculty or class</span></h3>
+        <div class="heatmap-legend">
+          <span class="heatmap-chip">Green = stronger average</span>
+          <span class="heatmap-chip">Amber = mid range</span>
+          <span class="heatmap-chip">Red = lower average</span>
+        </div>
+        <div class="table-wrap" id="questionsTable"></div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-comparison">
+      <div class="comparison-panel">
+        <h3>Faculty Comparison<span>Select two faculty members to compare across criteria</span></h3>
+        <div class="comparison-controls">
+          <div class="filter-field">
+            <label for="facultyCompareA">Faculty A</label>
+            <select id="facultyCompareA"></select>
+          </div>
+          <div class="filter-field">
+            <label for="facultyCompareB">Faculty B</label>
+            <select id="facultyCompareB"></select>
+          </div>
+        </div>
+        <div class="comparison-actions">
+          <button id="swapFacultyBtn" type="button">Swap Faculties</button>
+          <div class="comparison-note" id="comparisonSummary">Compare any two faculty members from the current filtered data.</div>
+        </div>
+      </div>
+      <div class="charts-grid full">
+        <div class="chart-card">
+          <div class="card-title">Comparison Radar<span>Criterion-wise averages for the selected faculty pair</span></div>
+          <div class="chart-wrap" style="height:360px"><canvas id="compareChart"></canvas></div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="card-title">Comparison Table<span>Average rating per criterion for the selected faculty pair</span></div>
+        <div class="table-wrap" id="comparisonTable"></div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-course">
+      <div class="charts-grid full">
+        <div class="chart-card span-2">
+          <div class="card-title">Performance by Faculty and Class<span>Average rating per faculty-class group</span></div>
+          <div class="chart-wrap" style="height:320px"><canvas id="courseChart"></canvas></div>
+        </div>
+      </div>
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="card-title">Response Count<span>Number of rows by class or faculty</span></div>
+          <div class="chart-wrap" style="height:240px"><canvas id="responseChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="card-title">Average Rating by Group<span>Average score for the selected faculty or class grouping</span></div>
+          <div class="chart-wrap" style="height:240px"><canvas id="polarityChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-suggestions">
+      <div class="chart-card">
+        <div class="card-title">Student Suggestions & Comments<span>Exact text from the sheet, filtered by faculty and class</span></div>
+        <div class="suggestions-toolbar">
+          <div class="helper-text" id="suggestionCountText">No suggestions loaded.</div>
+          <button id="copySuggestionsBtn" type="button">Copy Shown Suggestions</button>
+        </div>
+        <div class="suggestions-list" id="suggestionsList"></div>
+        <div class="insight-box" id="insightBox"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  const CATEGORY_DEFS = [
+    {
+      name: 'Teaching Quality',
+      keywords: ['real life', 'example', 'interesting', 'constructive', 'methodology', 'prepared', 'teaching style', 'av aid', 'creativity']
+    },
+    {
+      name: 'Classroom Management',
+      keywords: ['discipline', 'learning environment', 'participation', 'punctual', 'regularity', 'classroom', 'manage', 'inclusive']
+    },
+    {
+      name: 'Communication',
+      keywords: ['respect', 'body language', 'tone', 'approachable', 'queries', 'doubt', 'communication', 'interaction']
+    },
+    {
+      name: 'Subject Knowledge',
+      keywords: ['subject knowledge', 'knowledge', 'accurately', 'accuracy', 'expertise', 'concept']
+    },
+    {
+      name: 'Assessment & Evaluation',
+      keywords: ['grading', 'assessment', 'evaluation', 'assignment', 'performance feedback', 'transparent', 'feedback on']
+    },
+    {
+      name: 'Professionalism',
+      keywords: ['professional', 'behaviour', 'behavior', 'confidence', 'ethic', 'role model', 'inspire']
+    }
+  ];
+
+  const EXPECTED_SCHEMA = {
+    course: {
+      canonical: 'Course Name',
+      aliases: ['course name']
+    },
+    faculty: {
+      canonical: 'Faculty Name',
+      aliases: ['faculty name']
+    },
+    suggestion: {
+      canonical: 'Any suggestions',
+      aliases: ['any suggestions for', 'any suggestions', 'suggestions for', 'suggestion for', 'suggestions']
+    },
+    ratings: [
+      { canonical: 'Use of real life examples', aliases: ['use of real life examples', 'use of real life exam'] },
+      { canonical: 'Makes subject interesting', aliases: ['makes subject interesting', 'makes subject interest'] },
+      { canonical: 'Provides constructive feedback', aliases: ['provides constructive feedback', 'provides constructive', 'constructive feedback'] },
+      { canonical: 'Maintains discipline', aliases: ['maintains discipline'] },
+      { canonical: 'Creates a positive learning environment', aliases: ['creates a positive learning environment', 'creates a positive', 'positive learning environment'] },
+      { canonical: 'Ensures equal participation', aliases: ['ensures equal participation', 'ensures equal partic', 'equal participation'] },
+      { canonical: 'Talks with respect', aliases: ['talks with respect'] },
+      { canonical: 'Uses appropriate body language and tone', aliases: ['uses appropriate body language and tone', 'uses appropriate body language', 'uses appropriate bo', 'body language tone'] },
+      { canonical: 'Open to student queries', aliases: ['open to student queries', 'open to student que', 'approachable open to queries', 'open to queries'] },
+      { canonical: 'Demonstrates strong subject knowledge', aliases: ['demonstrates strong subject knowledge', 'demonstrates strong', 'subject knowledge'] },
+      { canonical: 'Uses relevant teaching methodology', aliases: ['uses relevant teaching methodology', 'uses relevant teach', 'teaching methodology'] },
+      { canonical: 'Comes well-prepared', aliases: ['comes well prepared', 'well prepared for class', 'well prepared'] },
+      { canonical: 'Answers questions accurately', aliases: ['answers questions accurately', 'answers questions a', 'answers accurately'] },
+      { canonical: 'Fair and unbiased in grading', aliases: ['fair and unbiased in grading', 'fair and unbiased in', 'fair unbiased grading', 'fair and unbiased grading'] },
+      { canonical: 'Provides timely feedback', aliases: ['provides timely feedback', 'provides timely feed', 'timely performance feedback'] },
+      { canonical: 'Transparent about evaluation', aliases: ['transparent about evaluation', 'transparent about e', 'transparent evaluation'] },
+      { canonical: 'Punctuality and regularity', aliases: ['punctuality and regularity', 'punctuality and regu'] },
+      { canonical: 'Professional behavior', aliases: ['professional behavior', 'professional behaviour', 'professional behavi'] },
+      { canonical: 'Inspires confidence', aliases: ['inspires confidence'] },
+      { canonical: 'Serves as a role model', aliases: ['serves as a role model', 'serves as a role mod', 'role model in ethics'] }
+    ]
+  };
+
+  const PALETTE = ['#e8a87c', '#7ec8c8', '#b484e8', '#7ce8a8', '#e8d07c', '#e87c7c', '#94a3ff', '#f0a6ca', '#b6d982', '#f2b880'];
+
+  const state = {
+    sourceLink: '',
+    sourceCsvUrl: '',
+    headers: [],
+    rows: [],
+    theme: 'light',
+    mapping: {
+      facultyIndex: null,
+      classIndex: null,
+      suggestionIndex: null,
+      ratingIndexes: []
+    },
+    filters: {
+      faculty: 'All',
+      className: 'All'
+    },
+    comparison: {
+      facultyA: '',
+      facultyB: ''
+    },
+    charts: {},
+    columnSummary: '',
+    currentAnalysis: null
+  };
+
+  const CHART_DEFAULTS = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#1e1e2a',
+        titleColor: '#f0eeea',
+        bodyColor: '#8a8a9a',
+        borderColor: '#2a2a3a',
+        borderWidth: 1
+      }
+    }
+  };
+
+  function loadStoredTheme() {
+    try {
+      const stored = localStorage.getItem('facultyFeedbackTheme');
+      return stored === 'dark' ? 'dark' : 'light';
+    } catch (error) {
+      return 'light';
+    }
+  }
+
+  function persistTheme(theme) {
+    try {
+      localStorage.setItem('facultyFeedbackTheme', theme);
+    } catch (error) {
+      // Ignore storage failures in private browsing contexts.
+    }
+  }
+
+  function loadStoredSourceLink() {
+    try {
+      return String(localStorage.getItem('facultyFeedbackSourceLink') || '').trim();
+    } catch (error) {
+      return '';
+    }
+  }
+
+  function persistSourceLink(link) {
+    try {
+      const value = normalizeCell(link);
+      if (value) {
+        localStorage.setItem('facultyFeedbackSourceLink', value);
+      } else {
+        localStorage.removeItem('facultyFeedbackSourceLink');
+      }
+    } catch (error) {
+      // Ignore storage failures in private browsing contexts.
+    }
+  }
+
+  function restoreSourceLink() {
+    const storedLink = loadStoredSourceLink();
+    if (!storedLink) return;
+
+    state.sourceLink = storedLink;
+    const input = byId('sourceLink');
+    if (input) input.value = storedLink;
+
+    const refreshButton = byId('refreshBtn');
+    if (refreshButton) refreshButton.disabled = false;
+  }
+
+  function updateThemeToggle() {
+    const button = byId('themeToggleBtn');
+    if (!button) return;
+    const nextTheme = state.theme === 'dark' ? 'light' : 'dark';
+    button.textContent = nextTheme === 'dark' ? 'Switch to dark' : 'Switch to light';
+    button.setAttribute('aria-pressed', state.theme === 'dark' ? 'true' : 'false');
+  }
+
+  function applyTheme(theme, persist = true) {
+    state.theme = theme === 'dark' ? 'dark' : 'light';
+    if (state.theme === 'dark') {
+      document.body.dataset.theme = 'dark';
+    } else {
+      document.body.removeAttribute('data-theme');
+    }
+
+    if (persist) persistTheme(state.theme);
+    updateThemeToggle();
+
+    const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+    if (themeColorMeta) {
+      themeColorMeta.setAttribute('content', state.theme === 'dark' ? '#0f0f13' : '#f5f8fc');
+    }
+
+    if (state.currentAnalysis) {
+      renderAll();
+    }
+  }
+
+  function toggleTheme() {
+    applyTheme(state.theme === 'dark' ? 'light' : 'dark');
+  }
+
+  function getThemeColors() {
+    const styles = getComputedStyle(document.body);
+    return {
+      surface: styles.getPropertyValue('--surface').trim() || '#ffffff',
+      text: styles.getPropertyValue('--text').trim() || '#152033',
+      muted: styles.getPropertyValue('--muted').trim() || '#667085',
+      border: styles.getPropertyValue('--border').trim() || '#d9e2ef',
+      grid: styles.getPropertyValue('--chart-grid').trim() || 'rgba(15,23,42,0.08)',
+      tooltipBackground: styles.getPropertyValue('--tooltip-bg').trim() || '#ffffff',
+      tooltipText: styles.getPropertyValue('--tooltip-text').trim() || '#152033',
+      tooltipMuted: styles.getPropertyValue('--tooltip-muted').trim() || '#667085'
+    };
+  }
+
+  function buildChartDefaults() {
+    const colors = getThemeColors();
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: colors.tooltipBackground,
+          titleColor: colors.tooltipText,
+          bodyColor: colors.tooltipMuted,
+          borderColor: colors.border,
+          borderWidth: 1
+        }
+      }
+    };
+  }
+
+  function summarizeRowRatings(row, ratingIndexes) {
+    const ratings = [];
+    (ratingIndexes || []).forEach(index => {
+      const rating = parseRating(row[index]);
+      if (rating !== null) ratings.push(rating);
+    });
+
+    const ratingCount = ratings.length;
+    const ratingSum = ratings.reduce((sum, rating) => sum + rating, 0);
+    const average = averageFromStats(ratingSum, ratingCount);
+    const roundedAverage = ratingCount > 0 ? Math.max(1, Math.min(5, Math.round(average))) : null;
+
+    return {
+      ratings,
+      ratingCount,
+      ratingSum,
+      average,
+      roundedAverage
+    };
+  }
+
+  function buildRowRatingBuckets(rowSummaries) {
+    const dist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    rowSummaries.forEach(summary => {
+      if (summary.roundedAverage === null) return;
+      dist[summary.roundedAverage] += 1;
+    });
+    return dist;
+  }
+
+  function topQuestionSummaries(questionStats, direction = 'desc', limit = 3) {
+    return (questionStats || [])
+      .filter(question => Number.isFinite(question.average))
+      .slice()
+      .sort((a, b) => direction === 'asc' ? a.average - b.average : b.average - a.average)
+      .slice(0, limit);
+  }
+
+  function byId(id) {
+    return document.getElementById(id);
+  }
+
+  function escapeHtml(text) {
+    return String(text ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function normalizeCell(value) {
+    return String(value ?? '').trim();
+  }
+
+  function normalizeKey(value) {
+    return normalizeCell(value)
+      .toLowerCase()
+      .replace(/[()[\]{}:;,.?/\\|_+-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function compactKey(value) {
+    return normalizeKey(value).replace(/\s+/g, '');
+  }
+
+  function descriptorMatchesHeader(header, descriptor) {
+    const key = normalizeKey(header);
+    const compact = compactKey(header);
+    const aliases = [descriptor.canonical, ...(descriptor.aliases || [])];
+
+    return aliases.some(alias => {
+      const aliasKey = normalizeKey(alias);
+      const aliasCompact = compactKey(alias);
+      return key === aliasKey
+        || key.includes(aliasKey)
+        || (key.length >= 10 && aliasKey.includes(key))
+        || compact === aliasCompact
+        || compact.includes(aliasCompact)
+        || (compact.length >= 10 && aliasCompact.includes(compact));
+    });
+  }
+
+  function findExpectedColumn(headers, descriptor, usedIndexes = new Set()) {
+    for (let index = 0; index < headers.length; index += 1) {
+      if (usedIndexes.has(index)) continue;
+      if (descriptorMatchesHeader(headers[index], descriptor)) return index;
+    }
+    return null;
+  }
+
+  function buildExpectedColumnSelection(headers) {
+    const used = new Set();
+    const courseIndex = findExpectedColumn(headers, EXPECTED_SCHEMA.course, used);
+    if (courseIndex !== null) used.add(courseIndex);
+
+    const facultyIndex = findExpectedColumn(headers, EXPECTED_SCHEMA.faculty, used);
+    if (facultyIndex !== null) used.add(facultyIndex);
+
+    const ratingMatches = [];
+    EXPECTED_SCHEMA.ratings.forEach(descriptor => {
+      const index = findExpectedColumn(headers, descriptor, used);
+      if (index === null) return;
+      used.add(index);
+      ratingMatches.push({ index, canonical: descriptor.canonical });
+    });
+
+    const suggestionIndex = findExpectedColumn(headers, EXPECTED_SCHEMA.suggestion, used);
+    if (suggestionIndex !== null) used.add(suggestionIndex);
+
+    return {
+      courseIndex,
+      facultyIndex,
+      suggestionIndex,
+      ratingMatches,
+      ratingIndexes: ratingMatches.map(match => match.index)
+    };
+  }
+
+  function applyExpectedColumnWhitelist(headers, rows) {
+    const selection = buildExpectedColumnSelection(headers);
+    const ordered = [];
+
+    if (selection.courseIndex !== null) ordered.push({ index: selection.courseIndex, header: EXPECTED_SCHEMA.course.canonical });
+    if (selection.facultyIndex !== null) ordered.push({ index: selection.facultyIndex, header: EXPECTED_SCHEMA.faculty.canonical });
+    selection.ratingMatches.forEach(match => ordered.push({ index: match.index, header: match.canonical }));
+    if (selection.suggestionIndex !== null) ordered.push({ index: selection.suggestionIndex, header: EXPECTED_SCHEMA.suggestion.canonical });
+
+    const missing = [];
+    if (selection.courseIndex === null) missing.push(EXPECTED_SCHEMA.course.canonical);
+    if (selection.facultyIndex === null) missing.push(EXPECTED_SCHEMA.faculty.canonical);
+    if (selection.ratingMatches.length === 0) missing.push('at least one listed 1-5 feedback question');
+
+    if (missing.length > 0) {
+      throw new Error(`Required columns not found: ${missing.join(', ')}. Only the columns shown in your feedback sheet header are supported.`);
+    }
+
+    const allowedRows = rows.map(row => ordered.map(column => normalizeCell(row[column.index])));
+    const ignoredCount = Math.max(0, headers.length - ordered.length);
+    const summary = `Using ${ordered.length} expected columns (${selection.ratingMatches.length} rating questions). Ignored ${ignoredCount} other columns.`;
+
+    return {
+      headers: ordered.map(column => column.header),
+      rows: allowedRows,
+      summary
+    };
+  }
+
+  function isExpectedRatingColumn(header) {
+    return EXPECTED_SCHEMA.ratings.some(descriptor => descriptorMatchesHeader(header, descriptor));
+  }
+
+  function parseRating(value) {
+    const text = normalizeCell(value).replace(/,/g, '');
+    if (text === '') return null;
+    const num = Number(text);
+    if (!Number.isFinite(num)) return null;
+    if (!Number.isInteger(num)) return null;
+    if (num < 1 || num > 5) return null;
+    return num;
+  }
+
+  function averageFromStats(sum, count) {
+    return count > 0 ? sum / count : NaN;
+  }
+
+  function formatNumber(value, digits = 2) {
+    return Number.isFinite(value) ? value.toFixed(digits) : '-';
+  }
+
+  function pct(numerator, denominator) {
+    return denominator > 0 ? Math.round((numerator / denominator) * 100) : 0;
+  }
+
+  function scoreColor(value) {
+    if (!Number.isFinite(value)) return 'rgba(255,255,255,0.18)';
+    if (value >= 4) return '#7ce8a8';
+    if (value >= 3) return '#f59e0b';
+    return '#e87c7c';
+  }
+
+  function scoreClass(value) {
+    if (!Number.isFinite(value)) return 'score-none';
+    if (value >= 4) return 'score-high';
+    if (value >= 3) return 'score-mid';
+    return 'score-low';
+  }
+
+  function setStatus(type, message) {
+    const box = byId('statusBox');
+    box.className = `status show ${type || ''}`;
+    box.textContent = message;
+  }
+
+  function clearStatus() {
+    const box = byId('statusBox');
+    box.className = 'status';
+    box.textContent = '';
+  }
+
+  function setLoading(isLoading) {
+    byId('loadBtn').disabled = isLoading;
+    byId('refreshBtn').disabled = isLoading || !state.sourceLink;
+    byId('exportPdfBtn').disabled = isLoading || !state.currentAnalysis || !isMappingUsable(state.mapping);
+  }
+
+  function isGoogleSheetLink(link) {
+    return /docs\.google\.com\/spreadsheets\/d\//i.test(link);
+  }
+
+  function extractGoogleSheetInfo(link) {
+    const match = link.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (!match) return null;
+    const gidMatch = link.match(/[?#&]gid=([0-9]+)/);
+    return {
+      id: match[1],
+      gid: gidMatch ? gidMatch[1] : '0'
+    };
+  }
+
+  function buildGoogleCsvUrl(sheetId, gid) {
+    return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+  }
+
+  function likelyHtml(text) {
+    const sample = text.slice(0, 300).toLowerCase();
+    return sample.includes('<!doctype html') || sample.includes('<html') || sample.includes('serviceLogin'.toLowerCase());
+  }
+
+  function hasCsvExtension(link) {
+    return /\.csv(\?|#|$)/i.test(link) || /[?&]format=csv\b/i.test(link) || /[?&]output=csv\b/i.test(link);
+  }
+
+  function hasWorkbookExtension(link) {
+    return /\.(xlsx|xls)(\?|#|$)/i.test(link);
+  }
+
+  async function fetchText(url) {
+    const response = await fetch(url, { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error(`Request failed (${response.status} ${response.statusText})`);
+    }
+    return response.text();
+  }
+
+  async function fetchArrayBuffer(url) {
+    const response = await fetch(url, { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error(`Request failed (${response.status} ${response.statusText})`);
+    }
+    return response.arrayBuffer();
+  }
+
+  function loadGoogleSheetViaGviz(sheetId, gid) {
+    return new Promise((resolve, reject) => {
+      const callbackName = `__facultySheetGviz_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      const tqx = `out:json;responseHandler:${callbackName}`;
+      const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?gid=${encodeURIComponent(gid)}&headers=1&tqx=${encodeURIComponent(tqx)}`;
+      const script = document.createElement('script');
+      let timer;
+
+      function cleanup() {
+        clearTimeout(timer);
+        delete window[callbackName];
+        if (script.parentNode) script.parentNode.removeChild(script);
+      }
+
+      window[callbackName] = response => {
+        try {
+          const rows = gvizResponseToRows(response);
+          cleanup();
+          resolve(rows);
+        } catch (error) {
+          cleanup();
+          reject(error);
+        }
+      };
+
+      script.onerror = () => {
+        cleanup();
+        reject(new Error('Google Sheets fallback failed. Make sure the sheet is public or published to the web.'));
+      };
+
+      timer = setTimeout(() => {
+        cleanup();
+        reject(new Error('Google Sheets took too long to respond. Check that the sheet is public and try again.'));
+      }, 20000);
+
+      script.src = url;
+      document.head.appendChild(script);
+    });
+  }
+
+  function gvizResponseToRows(response) {
+    if (!response) {
+      throw new Error('Google Sheets returned an empty response.');
+    }
+
+    if (response.status === 'error') {
+      const details = (response.errors || [])
+        .map(error => error.detailed_message || error.message || error.reason)
+        .filter(Boolean)
+        .join(' ');
+      throw new Error(details || 'Google Sheets could not load this sheet. Share it with "Anyone with the link" or publish it to the web.');
+    }
+
+    if (!response.table || !Array.isArray(response.table.cols)) {
+      throw new Error('Google Sheets returned data in an unexpected format.');
+    }
+
+    const headers = response.table.cols.map((column, index) => {
+      return normalizeCell(column.label) || normalizeCell(column.id) || `Column ${index + 1}`;
+    });
+
+    const rows = [headers];
+    (response.table.rows || []).forEach(row => {
+      const cells = (row.c || []).map(cell => {
+        if (!cell || cell.v === null || cell.v === undefined) return '';
+        return normalizeCell(cell.v);
+      });
+      while (cells.length < headers.length) cells.push('');
+      rows.push(cells.slice(0, headers.length));
+    });
+
+    return rows;
+  }
+
+  async function loadSourceFromInput() {
+    const link = normalizeCell(byId('sourceLink').value);
+    if (!link) {
+      setStatus('error', 'Paste a Google Sheets, CSV, or XLSX link first.');
+      return;
+    }
+    state.sourceLink = link;
+    persistSourceLink(link);
+    await loadSource(link);
+  }
+
+  async function refreshCurrentSource() {
+    if (!state.sourceLink) return;
+    await loadSource(state.sourceLink);
+  }
+
+  async function loadSource(link) {
+    setLoading(true);
+    setStatus('loading', 'Fetching sheet data...');
+
+    try {
+      let rows;
+      let sourceCsvUrl = '';
+
+      if (isGoogleSheetLink(link)) {
+        const info = extractGoogleSheetInfo(link);
+        if (!info) {
+          throw new Error('Could not read the Google Sheets ID from this link.');
+        }
+        sourceCsvUrl = buildGoogleCsvUrl(info.id, info.gid);
+        try {
+          const text = await fetchText(sourceCsvUrl);
+          if (likelyHtml(text)) {
+            throw new Error('Google Sheets returned a web page instead of CSV.');
+          }
+          rows = parseCsv(text);
+        } catch (csvError) {
+          setStatus('loading', 'CSV export was blocked or unavailable. Trying Google Sheets fallback...');
+          rows = await loadGoogleSheetViaGviz(info.id, info.gid);
+        }
+      } else if (hasCsvExtension(link)) {
+        sourceCsvUrl = link;
+        const text = await fetchText(link);
+        if (likelyHtml(text)) {
+          throw new Error('This link returned HTML instead of CSV. Use a direct CSV download link.');
+        }
+        rows = parseCsv(text);
+      } else if (hasWorkbookExtension(link)) {
+        if (typeof XLSX === 'undefined') {
+          throw new Error('SheetJS did not load, so XLSX files cannot be read. Check your internet connection or use CSV.');
+        }
+        const buffer = await fetchArrayBuffer(link);
+        rows = parseWorkbook(buffer);
+      } else {
+        throw new Error('Unsupported link. Use a public Google Sheets link, direct CSV link, or direct XLSX link.');
+      }
+
+      ingestRows(rows, link, sourceCsvUrl);
+      setStatus('ok', `Loaded ${state.rows.length} response rows. ${state.columnSummary}`);
+    } catch (error) {
+      setStatus('error', error.message || 'Unable to load the sheet.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function ingestRows(rows, sourceLink, sourceCsvUrl) {
+    const cleanedRows = (rows || [])
+      .map(row => (row || []).map(cell => normalizeCell(cell)))
+      .filter(row => row.some(cell => cell !== ''));
+
+    if (cleanedRows.length < 2) {
+      throw new Error('No data rows found. The first row should contain headers and the next rows should contain responses.');
+    }
+
+    const rawHeaders = cleanedRows[0];
+    const headers = rawHeaders.map((header, index) => {
+      const cleaned = normalizeCell(header);
+      return cleaned || `Column ${index + 1}`;
+    });
+
+    const dataRows = cleanedRows.slice(1).map(row => {
+      const next = row.slice();
+      while (next.length < headers.length) next.push('');
+      return next.slice(0, headers.length);
+    });
+
+    if (dataRows.length === 0) {
+      throw new Error('No response rows found after the header row.');
+    }
+
+    const allowed = applyExpectedColumnWhitelist(headers, dataRows);
+
+    state.sourceLink = sourceLink;
+    state.sourceCsvUrl = sourceCsvUrl || '';
+    state.headers = allowed.headers;
+    state.rows = allowed.rows;
+    state.columnSummary = allowed.summary;
+    state.mapping = detectMapping(allowed.headers, allowed.rows);
+    state.filters = { faculty: 'All', className: 'All' };
+    state.comparison = { facultyA: '', facultyB: '' };
+    state.currentAnalysis = null;
+    persistSourceLink(sourceLink);
+
+    const emptyState = byId('emptyState');
+    if (emptyState) emptyState.hidden = true;
+    byId('dashboardShell').hidden = false;
+    byId('mappingPanel').hidden = false;
+    byId('mappingPanel').open = !isMappingUsable(state.mapping);
+    byId('filterPanel').hidden = false;
+
+    renderMappingPanel();
+    renderFilters();
+    renderAll();
+  }
+
+  function parseWorkbook(buffer) {
+    const workbook = XLSX.read(buffer, { type: 'array' });
+    const firstSheetName = workbook.SheetNames[0];
+    if (!firstSheetName) {
+      throw new Error('The workbook does not contain any sheets.');
+    }
+    const firstSheet = workbook.Sheets[firstSheetName];
+    return XLSX.utils.sheet_to_json(firstSheet, { header: 1, raw: false, defval: '' });
+  }
+
+  function parseCsv(text) {
+    const rows = [];
+    let row = [];
+    let value = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i += 1) {
+      const char = text[i];
+      const next = text[i + 1];
+
+      if (char === '"') {
+        if (inQuotes && next === '"') {
+          value += '"';
+          i += 1;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === ',' && !inQuotes) {
+        row.push(value);
+        value = '';
+      } else if (char === '\n' && !inQuotes) {
+        row.push(value);
+        rows.push(row);
+        row = [];
+        value = '';
+      } else if (char === '\r') {
+        continue;
+      } else {
+        value += char;
+      }
+    }
+
+    if (value.length > 0 || row.length > 0) {
+      row.push(value);
+      rows.push(row);
+    }
+
+    return rows;
+  }
+
+  function detectMapping(headers, rows) {
+    const expected = buildExpectedColumnSelection(headers);
+    const facultyIndex = expected.facultyIndex ?? detectRoleColumn(headers, rows, 'faculty', []);
+    const classIndex = expected.courseIndex ?? detectRoleColumn(headers, rows, 'class', [facultyIndex]);
+    const suggestionIndex = expected.suggestionIndex ?? detectRoleColumn(headers, rows, 'suggestion', [facultyIndex, classIndex]);
+    const ratingIndexes = detectRatingColumns(headers, rows, [facultyIndex, classIndex, suggestionIndex]);
+
+    return { facultyIndex, classIndex, suggestionIndex, ratingIndexes };
+  }
+
+  function detectRoleColumn(headers, rows, role, forbiddenIndexes) {
+    const forbidden = new Set((forbiddenIndexes || []).filter(index => index !== null && index !== undefined));
+    let best = { index: null, score: 0 };
+
+    headers.forEach((header, index) => {
+      if (forbidden.has(index)) return;
+      const score = scoreRoleColumn(header, rows, index, role);
+      if (score > best.score) {
+        best = { index, score };
+      }
+    });
+
+    return best.score >= 50 ? best.index : null;
+  }
+
+  function scoreRoleColumn(header, rows, index, role) {
+    const key = normalizeKey(header);
+    const values = rows.map(row => normalizeCell(row[index])).filter(Boolean);
+    const unique = new Set(values.map(normalizeKey));
+    const nonNumericRatio = values.length
+      ? values.filter(value => !Number.isFinite(Number(value))).length / values.length
+      : 0;
+    const avgLength = values.length
+      ? values.reduce((sum, value) => sum + value.length, 0) / values.length
+      : 0;
+
+    let score = 0;
+
+    if (role === 'faculty') {
+      if (key.includes('faculty name')) score += 120;
+      if (/\bfaculty\b/.test(key)) score += 95;
+      if (/\bteacher\b/.test(key)) score += 80;
+      if (/\binstructor\b/.test(key)) score += 70;
+      if (/\blecturer\b/.test(key)) score += 70;
+      if (/\bprofessor\b/.test(key)) score += 65;
+      if (/\bname\b/.test(key)) score += 12;
+      if (values.length && unique.size <= Math.max(30, values.length * 0.8)) score += 18;
+      if (nonNumericRatio > 0.85) score += 10;
+    }
+
+    if (role === 'class') {
+      if (key.includes('class name')) score += 120;
+      if (key.includes('course name')) score += 115;
+      if (/\bcourse\b/.test(key)) score += 84;
+      if (/\bclass\b/.test(key)) score += 82;
+      if (/\bsemester\b/.test(key)) score += 72;
+      if (/\bsem\b/.test(key)) score += 60;
+      if (/\byear\b/.test(key)) score += 42;
+      if (/\bsection\b/.test(key)) score += 38;
+      if (key.includes('classroom')) score -= 90;
+      if (values.length && unique.size <= Math.max(40, values.length * 0.85)) score += 14;
+      if (nonNumericRatio > 0.7) score += 8;
+    }
+
+    if (role === 'suggestion') {
+      if (/\bsuggestion\b/.test(key)) score += 120;
+      if (/\bcomment\b/.test(key)) score += 95;
+      if (/\bremark\b/.test(key)) score += 80;
+      if (/\bimprovement\b/.test(key)) score += 80;
+      if (key.includes('open ended') || key.includes('open end')) score += 78;
+      if (key.includes('anything else')) score += 72;
+      if (key.includes('student feedback')) score += 58;
+      if (/\bfeedback\b/.test(key)) score += 35;
+      if (avgLength >= 18) score += 22;
+      if (avgLength >= 35) score += 20;
+      if (nonNumericRatio > 0.95) score += 10;
+    }
+
+    return score;
+  }
+
+  function detectRatingColumns(headers, rows, forbiddenIndexes) {
+    const forbidden = new Set((forbiddenIndexes || []).filter(index => index !== null && index !== undefined));
+    const result = [];
+
+    headers.forEach((header, index) => {
+      if (forbidden.has(index)) return;
+      if (!isExpectedRatingColumn(header)) return;
+
+      const values = rows.map(row => normalizeCell(row[index])).filter(Boolean);
+      if (values.length === 0) return;
+
+      const validRatings = values.map(parseRating).filter(value => value !== null);
+      const validRatio = validRatings.length / values.length;
+
+      if (validRatings.length > 0 && validRatio >= 0.6) {
+        result.push(index);
+      }
+    });
+
+    return result;
+  }
+
+  function isMetadataHeader(header) {
+    const key = normalizeKey(header);
+    const broadMetadataTerms = [
+      'timestamp', 'email', 'mail', 'student name', 'name of student', 'roll', 'enrollment',
+      'admission', 'phone', 'mobile', 'contact', 'faculty', 'teacher', 'instructor', 'lecturer',
+      'suggestion', 'comment', 'remark', 'improvement', 'anything else'
+    ];
+    const exactMetadataTerms = [
+      'class', 'class name', 'course', 'course name', 'semester', 'sem', 'section', 'year',
+      'program', 'programme', 'batch'
+    ];
+
+    return broadMetadataTerms.some(term => key.includes(term)) || exactMetadataTerms.includes(key);
+  }
+
+  function isMappingUsable(mapping) {
+    return mapping && mapping.ratingIndexes && mapping.ratingIndexes.length > 0;
+  }
+
+  function optionHtml(index, selectedIndex) {
+    const selected = selectedIndex === index ? ' selected' : '';
+    return `<option value="${index}"${selected}>${escapeHtml(state.headers[index])}</option>`;
+  }
+
+  function renderMappingPanel() {
+    const noneOption = selected => `<option value=""${selected === null || selected === undefined ? ' selected' : ''}>Not available</option>`;
+    byId('facultyColumnSelect').innerHTML = noneOption(state.mapping.facultyIndex) + state.headers.map((_, index) => optionHtml(index, state.mapping.facultyIndex)).join('');
+    byId('classColumnSelect').innerHTML = noneOption(state.mapping.classIndex) + state.headers.map((_, index) => optionHtml(index, state.mapping.classIndex)).join('');
+    byId('suggestionColumnSelect').innerHTML = noneOption(state.mapping.suggestionIndex) + state.headers.map((_, index) => optionHtml(index, state.mapping.suggestionIndex)).join('');
+
+    const ratingSet = new Set(state.mapping.ratingIndexes);
+    byId('ratingColumnChecks').innerHTML = state.headers.map((header, index) => `
+      <label class="rating-check">
+        <input type="checkbox" class="rating-column-check" value="${index}"${ratingSet.has(index) ? ' checked' : ''}${isExpectedRatingColumn(header) ? '' : ' disabled'}>
+        <span>${escapeHtml(header)}${isExpectedRatingColumn(header) ? '' : ' (not a rating question)'}</span>
+      </label>
+    `).join('');
+
+    updateMappingSummary();
+  }
+
+  function updateMappingSummary() {
+    const parts = [
+      `ratings: ${state.mapping.ratingIndexes.length}`,
+      `faculty: ${state.mapping.facultyIndex === null ? 'not set' : state.headers[state.mapping.facultyIndex]}`,
+      `class: ${state.mapping.classIndex === null ? 'not set' : state.headers[state.mapping.classIndex]}`,
+      `suggestions: ${state.mapping.suggestionIndex === null ? 'not set' : state.headers[state.mapping.suggestionIndex]}`
+    ];
+    byId('mappingSummary').textContent = parts.join(' | ');
+  }
+
+  function readSelectIndex(id) {
+    const value = byId(id).value;
+    return value === '' ? null : Number(value);
+  }
+
+  function applyColumnMapping() {
+    const ratingIndexes = Array.from(document.querySelectorAll('.rating-column-check:checked'))
+      .map(input => Number(input.value))
+      .filter(value => Number.isInteger(value));
+
+    state.mapping = {
+      facultyIndex: readSelectIndex('facultyColumnSelect'),
+      classIndex: readSelectIndex('classColumnSelect'),
+      suggestionIndex: readSelectIndex('suggestionColumnSelect'),
+      ratingIndexes
+    };
+
+    state.filters = { faculty: 'All', className: 'All' };
+    updateMappingSummary();
+    renderFilters();
+    renderAll();
+
+    if (ratingIndexes.length === 0) {
+      setStatus('error', 'No rating columns selected. Choose columns that contain numeric 1-5 ratings.');
+    } else {
+      setStatus('ok', `Mapping applied with ${ratingIndexes.length} rating columns.`);
+    }
+  }
+
+  function autoDetectAgain() {
+    state.mapping = detectMapping(state.headers, state.rows);
+    state.filters = { faculty: 'All', className: 'All' };
+    renderMappingPanel();
+    renderFilters();
+    renderAll();
+    setStatus('ok', 'Auto-detection refreshed. Please review the mapping.');
+  }
+
+  function uniqueValues(index, rows = state.rows) {
+    if (index === null || index === undefined) return [];
+    const set = new Set();
+    rows.forEach(row => {
+      const value = normalizeCell(row[index]);
+      if (value) set.add(value);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }
+
+  function renderFilters() {
+    const facultyValues = uniqueValues(state.mapping.facultyIndex);
+    const classValues = uniqueValues(state.mapping.classIndex);
+
+    byId('facultyFilter').disabled = state.mapping.facultyIndex === null;
+    byId('classFilter').disabled = state.mapping.classIndex === null;
+
+    byId('facultyFilter').innerHTML = `<option value="All">All Faculty</option>` + facultyValues.map(value => (
+      `<option value="${escapeHtml(value)}"${state.filters.faculty === value ? ' selected' : ''}>${escapeHtml(value)}</option>`
+    )).join('');
+
+    byId('classFilter').innerHTML = `<option value="All">All Classes</option>` + classValues.map(value => (
+      `<option value="${escapeHtml(value)}"${state.filters.className === value ? ' selected' : ''}>${escapeHtml(value)}</option>`
+    )).join('');
+  }
+
+  function getFilteredRows() {
+    return state.rows.filter(row => {
+      if (state.filters.faculty !== 'All' && state.mapping.facultyIndex !== null) {
+        if (normalizeCell(row[state.mapping.facultyIndex]) !== state.filters.faculty) return false;
+      }
+      if (state.filters.className !== 'All' && state.mapping.classIndex !== null) {
+        if (normalizeCell(row[state.mapping.classIndex]) !== state.filters.className) return false;
+      }
+      return true;
+    });
+  }
+
+  function computeAnalysis(rows = getFilteredRows(), mapping = state.mapping, headers = state.headers) {
+    const ratingIndexes = mapping.ratingIndexes || [];
+    const rowSummaries = rows.map((row, rowIndex) => ({
+      rowIndex,
+      ...summarizeRowRatings(row, ratingIndexes)
+    }));
+    const questionStats = ratingIndexes.map(index => ({
+      index,
+      header: headers[index],
+      sum: 0,
+      count: 0,
+      average: NaN
+    }));
+
+    const dist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    let ratingSum = 0;
+    let ratingCount = 0;
+
+    rows.forEach(row => {
+      questionStats.forEach(question => {
+        const rating = parseRating(row[question.index]);
+        if (rating === null) return;
+        question.sum += rating;
+        question.count += 1;
+        ratingSum += rating;
+        ratingCount += 1;
+        dist[rating] += 1;
+      });
+    });
+
+    questionStats.forEach(question => {
+      question.average = averageFromStats(question.sum, question.count);
+    });
+
+    const studentRatingDist = buildRowRatingBuckets(rowSummaries);
+    const categoryStats = buildCategoryStats(rows, ratingIndexes, headers);
+    const facultyStats = buildGroupStats(rows, mapping.facultyIndex, ratingIndexes, 'Faculty');
+    const classStats = buildGroupStats(rows, mapping.classIndex, ratingIndexes, 'Class');
+    const pairStats = buildPairStats(rows, mapping, ratingIndexes);
+    const suggestions = buildSuggestions(rows, mapping, rowSummaries);
+    const strengths = topQuestionSummaries(questionStats, 'desc', 3);
+    const focusAreas = topQuestionSummaries(questionStats, 'asc', 3);
+    const suggestionCount = suggestions.length;
+    const ratedResponseCount = rowSummaries.filter(summary => summary.ratingCount > 0).length;
+
+    return {
+      responseCount: rows.length,
+      ratedResponseCount,
+      ratingCount,
+      ratingSum,
+      averageRating: averageFromStats(ratingSum, ratingCount),
+      overallAverage: averageFromStats(ratingSum, ratingCount),
+      dist,
+      studentRatingDist,
+      questionStats,
+      categoryStats,
+      facultyStats,
+      classStats,
+      pairStats,
+      suggestions,
+      suggestionCount,
+      strengths,
+      focusAreas,
+      rowSummaries
+    };
+  }
+
+  function buildCategoryStats(rows, ratingIndexes, headers) {
+    const stats = {};
+
+    CATEGORY_DEFS.forEach(def => {
+      stats[def.name] = { name: def.name, sum: 0, count: 0, average: NaN, questions: [] };
+    });
+    stats['Other Questions'] = { name: 'Other Questions', sum: 0, count: 0, average: NaN, questions: [] };
+
+    ratingIndexes.forEach(index => {
+      const header = headers[index];
+      const categoryName = categoryForQuestion(header);
+      if (!stats[categoryName]) {
+        stats[categoryName] = { name: categoryName, sum: 0, count: 0, average: NaN, questions: [] };
+      }
+
+      const questionStat = { index, header, sum: 0, count: 0, average: NaN };
+      rows.forEach(row => {
+        const rating = parseRating(row[index]);
+        if (rating === null) return;
+        questionStat.sum += rating;
+        questionStat.count += 1;
+        stats[categoryName].sum += rating;
+        stats[categoryName].count += 1;
+      });
+      questionStat.average = averageFromStats(questionStat.sum, questionStat.count);
+      stats[categoryName].questions.push(questionStat);
+    });
+
+    Object.values(stats).forEach(stat => {
+      stat.average = averageFromStats(stat.sum, stat.count);
+    });
+
+    return Object.values(stats).filter(stat => stat.count > 0 || stat.questions.length > 0);
+  }
+
+  function categoryForQuestion(header) {
+    const key = normalizeKey(header);
+    for (const def of CATEGORY_DEFS) {
+      if (def.keywords.some(keyword => key.includes(keyword))) {
+        return def.name;
+      }
+    }
+    return 'Other Questions';
+  }
+
+  function buildGroupStats(rows, groupIndex, ratingIndexes, fallbackLabel) {
+    if (groupIndex === null || groupIndex === undefined) return [];
+    const groups = new Map();
+
+    rows.forEach(row => {
+      const name = normalizeCell(row[groupIndex]);
+      if (!name) return;
+      if (!groups.has(name)) {
+        groups.set(name, {
+          name,
+          label: name,
+          responseCount: 0,
+          ratingCount: 0,
+          sum: 0,
+          average: NaN,
+          dist: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+        });
+      }
+      const group = groups.get(name);
+      group.responseCount += 1;
+      ratingIndexes.forEach(index => {
+        const rating = parseRating(row[index]);
+        if (rating === null) return;
+        group.sum += rating;
+        group.ratingCount += 1;
+        group.dist[rating] += 1;
+      });
+    });
+
+    return Array.from(groups.values())
+      .map(group => ({ ...group, average: averageFromStats(group.sum, group.ratingCount), groupType: fallbackLabel }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  function buildPairStats(rows, mapping, ratingIndexes) {
+    const hasFaculty = mapping.facultyIndex !== null && mapping.facultyIndex !== undefined;
+    const hasClass = mapping.classIndex !== null && mapping.classIndex !== undefined;
+
+    if (!hasFaculty && !hasClass) return [];
+    if (!hasFaculty) return buildGroupStats(rows, mapping.classIndex, ratingIndexes, 'Class');
+    if (!hasClass) return buildGroupStats(rows, mapping.facultyIndex, ratingIndexes, 'Faculty');
+
+    const groups = new Map();
+    rows.forEach(row => {
+      const faculty = normalizeCell(row[mapping.facultyIndex]) || 'Unknown Faculty';
+      const className = normalizeCell(row[mapping.classIndex]) || 'Unknown Class';
+      const key = `${faculty} - ${className}`;
+
+      if (!groups.has(key)) {
+        groups.set(key, {
+          name: key,
+          label: key,
+          faculty,
+          className,
+          responseCount: 0,
+          ratingCount: 0,
+          sum: 0,
+          average: NaN,
+          dist: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+        });
+      }
+
+      const group = groups.get(key);
+      group.responseCount += 1;
+      ratingIndexes.forEach(index => {
+        const rating = parseRating(row[index]);
+        if (rating === null) return;
+        group.sum += rating;
+        group.ratingCount += 1;
+        group.dist[rating] += 1;
+      });
+    });
+
+    return Array.from(groups.values())
+      .map(group => ({ ...group, average: averageFromStats(group.sum, group.ratingCount) }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  function buildSuggestions(rows, mapping, rowSummaries = []) {
+    if (mapping.suggestionIndex === null || mapping.suggestionIndex === undefined) return [];
+
+    return rows.map((row, rowIndex) => {
+      const text = normalizeCell(row[mapping.suggestionIndex]);
+      if (!text) return null;
+      const rowSummary = rowSummaries[rowIndex] || summarizeRowRatings(row, mapping.ratingIndexes || []);
+      return {
+        rowIndex,
+        text,
+        faculty: mapping.facultyIndex === null ? '' : normalizeCell(row[mapping.facultyIndex]),
+        className: mapping.classIndex === null ? '' : normalizeCell(row[mapping.classIndex]),
+        averageRating: rowSummary.average,
+        roundedRating: rowSummary.roundedAverage,
+        ratingCount: rowSummary.ratingCount,
+        ratings: rowSummary.ratings
+      };
+    }).filter(Boolean);
+  }
+
+  function renderAll() {
+    destroyAllCharts();
+
+    if (!isMappingUsable(state.mapping)) {
+      state.currentAnalysis = computeAnalysis();
+      renderStats(state.currentAnalysis);
+      renderNoDataViews('Select at least one numeric 1-5 rating column in Column mapping.');
+      byId('exportPdfBtn').disabled = true;
+      return;
+    }
+
+    const analysis = computeAnalysis();
+    state.currentAnalysis = analysis;
+
+    renderHeaderSummary(analysis);
+    renderStats(analysis);
+    renderOverview(analysis);
+    renderDeepAnalysis(analysis);
+    renderCriteriaHeatmap(analysis);
+    renderFacultyComparison(analysis);
+    renderCourseCharts(analysis);
+    renderSuggestions(analysis);
+    byId('exportPdfBtn').disabled = false;
+  }
+
+  function renderOverview(analysis) {
+    renderOverviewHighlights(analysis);
+    renderStudentDistributionChart('overviewDistChart', analysis, 'doughnut');
+    renderOverviewCriteriaChart(analysis);
+  }
+
+  function renderDeepAnalysis(analysis) {
+    renderStudentDistributionChart('deepDistChart', analysis, 'bar');
+    renderCategoryRadar(analysis);
+    renderCategoryCards(analysis);
+  }
+
+  function renderHeaderSummary(analysis) {
+    const filterText = [
+      state.filters.faculty === 'All' ? 'all faculty' : state.filters.faculty,
+      state.filters.className === 'All' ? 'all classes' : state.filters.className
+    ].join(' | ');
+    byId('headerSummary').textContent = `${analysis.responseCount} student responses, average rating ${formatNumber(analysis.averageRating, 2)}, ${analysis.suggestionCount} suggestion comments. Filters: ${filterText}.`;
+  }
+
+  function renderStats(analysis) {
+    const facultyShown = state.mapping.facultyIndex === null ? '-' : uniqueValues(state.mapping.facultyIndex, getFilteredRows()).length;
+    const classShown = state.mapping.classIndex === null ? '-' : uniqueValues(state.mapping.classIndex, getFilteredRows()).length;
+    const overallClass = analysis.averageRating >= 4 ? 'good' : analysis.averageRating >= 3 ? 'warn' : 'danger';
+
+    byId('statsGrid').innerHTML = `
+      <div class="stat-card accent1">
+        <div class="stat-label">Total Responses</div>
+        <div class="stat-value">${analysis.responseCount}</div>      
+      </div>
+      <div class="stat-card ${overallClass}">
+        <div class="stat-label">Average Rating</div>
+        <div class="stat-value">${formatNumber(analysis.averageRating, 2)}</div>
+        <div class="stat-sub">overall across selected criteria</div>
+      </div>
+      <div class="stat-card accent2">
+        <div class="stat-label">Suggestions Written</div>
+        <div class="stat-value">${analysis.suggestionCount}</div>
+        <div class="stat-sub">student comment rows</div>
+      </div>
+      <div class="stat-card accent3">
+        <div class="stat-label">Criteria Selected</div>
+        <div class="stat-value">${analysis.questionStats.length}</div>
+        <div class="stat-sub">rating questions in use</div>
+      </div>
+      <div class="stat-card warn">
+        <div class="stat-label">Faculty / Classes</div>
+        <div class="stat-value">${facultyShown} / ${classShown}</div>
+        <div class="stat-sub">visible in current filters</div>
+      </div>
+    `;
+  }
+
+  function destroyChart(id) {
+    if (state.charts[id]) {
+      state.charts[id].destroy();
+      delete state.charts[id];
+    }
+  }
+
+  function destroyAllCharts() {
+    Object.keys(state.charts).forEach(destroyChart);
+  }
+
+  function chartAvailable(canvasId) {
+    return typeof Chart !== 'undefined' && byId(canvasId);
+  }
+
+  function palette(index) {
+    return PALETTE[index % PALETTE.length];
+  }
+
+  function renderOverviewHighlights(analysis) {
+    const strengthsList = byId('strengthsList');
+    const focusAreasList = byId('focusAreasList');
+    const strengths = analysis.strengths || [];
+    const focusAreas = analysis.focusAreas || [];
+
+    if (!strengths.length) {
+      strengthsList.innerHTML = '<div class="no-data">No strength data yet.</div>';
+    } else {
+      strengthsList.innerHTML = strengths.map(question => `
+        <div class="overview-item">
+          <div>
+            <div class="label">${escapeHtml(question.header)}</div>
+            <div class="meta">Highest average from selected criteria</div>
+          </div>
+          <span class="score-badge ${scoreClass(question.average)}">${formatNumber(question.average, 2)}</span>
+        </div>
+      `).join('');
+    }
+
+    if (!focusAreas.length) {
+      focusAreasList.innerHTML = '<div class="no-data">No focus area data yet.</div>';
+    } else {
+      focusAreasList.innerHTML = focusAreas.map(question => `
+        <div class="overview-item">
+          <div>
+            <div class="label">${escapeHtml(question.header)}</div>
+            <div class="meta">Lowest average from selected criteria</div>
+          </div>
+          <span class="score-badge ${scoreClass(question.average)}">${formatNumber(question.average, 2)}</span>
+        </div>
+      `).join('');
+    }
+  }
+
+  function renderStudentDistributionChart(canvasId, analysis, chartType) {
+    if (!chartAvailable(canvasId)) return;
+    const theme = getThemeColors();
+    const counts = analysis.studentRatingDist || analysis.dist || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    const labels = ['1 Star', '2 Stars', '3 Stars', '4 Stars', '5 Stars'];
+    const values = [counts[1], counts[2], counts[3], counts[4], counts[5]];
+    const paletteColors = ['#c63d55', '#e87c7c', '#f59e0b', '#9acd6a', '#0f8a61'];
+    const ctx = byId(canvasId).getContext('2d');
+    const defaults = buildChartDefaults();
+
+    state.charts[canvasId] = new Chart(ctx, {
+      type: chartType,
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          backgroundColor: paletteColors,
+          borderColor: chartType === 'doughnut' ? theme.surface : paletteColors,
+          borderWidth: chartType === 'doughnut' ? 2 : 1,
+          borderRadius: chartType === 'bar' ? 6 : undefined,
+          borderSkipped: false,
+          hoverOffset: chartType === 'doughnut' ? 4 : 0,
+        }]
+      },
+      options: chartType === 'doughnut'
+        ? {
+            ...defaults,
+            cutout: '64%',
+            plugins: {
+              ...defaults.plugins,
+              legend: { display: true, position: 'bottom', labels: { color: theme.muted, boxWidth: 10, font: { size: 11 } } }
+            }
+          }
+        : {
+            ...defaults,
+            plugins: { ...defaults.plugins, legend: { display: false } },
+            scales: {
+              x: { ticks: { color: theme.muted, font: { size: 10 } }, grid: { display: false } },
+              y: { beginAtZero: true, ticks: { precision: 0, color: theme.muted, font: { size: 10 } }, grid: { color: theme.grid } }
+            }
+          }
+    });
+  }
+
+  function renderOverviewCriteriaChart(analysis) {
+    if (!chartAvailable('overviewCriteriaChart')) return;
+    const theme = getThemeColors();
+    const defaults = buildChartDefaults();
+    const combined = [];
+    const seen = new Set();
+
+    (analysis.strengths || []).forEach(question => {
+      if (seen.has(question.header)) return;
+      seen.add(question.header);
+      combined.push({ question, kind: 'strength' });
+    });
+
+    (analysis.focusAreas || []).forEach(question => {
+      if (seen.has(question.header)) return;
+      seen.add(question.header);
+      combined.push({ question, kind: 'focus' });
+    });
+
+    if (combined.length === 0) {
+      return;
+    }
+
+    const labels = combined.map(item => shortLabel(item.question.header, 34));
+    const values = combined.map(item => item.question.average);
+    const backgrounds = combined.map(item => item.kind === 'strength' ? 'rgba(15, 138, 97, 0.72)' : 'rgba(198, 61, 85, 0.72)');
+    const borders = combined.map(item => item.kind === 'strength' ? '#0f8a61' : '#c63d55');
+    const ctx = byId('overviewCriteriaChart').getContext('2d');
+
+    state.charts.overviewCriteria = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          backgroundColor: backgrounds,
+          borderColor: borders,
+          borderWidth: 1,
+          borderRadius: 6,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        ...defaults,
+        indexAxis: 'y',
+        plugins: {
+          ...defaults.plugins,
+          legend: { display: false },
+          tooltip: {
+            ...defaults.plugins.tooltip,
+            callbacks: {
+              label: context => ` Average rating: ${formatNumber(context.parsed.x, 2)}`
+            }
+          }
+        },
+        scales: {
+          x: { min: 0, max: 5, ticks: { color: theme.muted, font: { size: 10 }, stepSize: 1 }, grid: { color: theme.grid } },
+          y: { ticks: { color: theme.muted, font: { size: 10 } }, grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  function renderCategoryRadar(analysis) {
+    if (!chartAvailable('catRadarChart')) return;
+    const theme = getThemeColors();
+    const categories = analysis.categoryStats.filter(stat => stat.count > 0);
+    const labels = categories.length ? categories.map(stat => stat.name) : ['No category data'];
+    const data = categories.length ? categories.map(stat => stat.average) : [0];
+    const defaults = buildChartDefaults();
+
+    const ctx = byId('catRadarChart').getContext('2d');
+    state.charts.catRadar = new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Selected rows',
+          data,
+          backgroundColor: '#7ec8c822',
+          borderColor: '#7ec8c8',
+          borderWidth: 2,
+          pointBackgroundColor: '#7ec8c8',
+          pointRadius: 4
+        }]
+      },
+      options: {
+        ...defaults,
+        plugins: {
+          ...defaults.plugins,
+          legend: { display: false }
+        },
+        scales: {
+          r: {
+            min: 0,
+            max: 5,
+            ticks: { stepSize: 1, color: theme.muted, font: { size: 9 }, backdropColor: 'transparent' },
+            grid: { color: theme.grid },
+            angleLines: { color: theme.grid },
+            pointLabels: { color: theme.muted, font: { size: 10 } }
+          }
+        }
+      }
+    });
+  }
+
+  function renderFacultyComparison(analysis) {
+    const facultyIndex = state.mapping.facultyIndex;
+    const comparisonSummary = byId('comparisonSummary');
+    const comparisonTable = byId('comparisonTable');
+    const available = facultyIndex === null ? [] : uniqueValues(facultyIndex, getFilteredRows());
+
+    destroyChart('compare');
+
+    renderFacultyComparisonControls(available);
+
+    if (!analysis.questionStats.length || available.length === 0) {
+      comparisonSummary.textContent = 'Select a faculty column and at least two faculty names to compare.';
+      comparisonTable.innerHTML = '<div class="no-data">No faculty comparison data is available for the current filters.</div>';
+      return;
+    }
+
+    const groups = buildQuestionStatsByGroup(getFilteredRows(), facultyIndex);
+    const selection = resolveComparisonSelection(available);
+    const selectedGroups = [selection.facultyA, selection.facultyB]
+      .map(name => groups.find(group => group.label === name))
+      .filter(Boolean);
+
+    if (selectedGroups.length === 0) {
+      comparisonSummary.textContent = 'Choose two faculties to compare.';
+      comparisonTable.innerHTML = '<div class="no-data">Choose two faculties to compare.</div>';
+      return;
+    }
+
+    comparisonSummary.textContent = selectedGroups.length > 1
+      ? `Comparing ${selectedGroups[0].label} and ${selectedGroups[1].label} across ${analysis.questionStats.length} criteria.`
+      : `Comparing ${selectedGroups[0].label} across ${analysis.questionStats.length} criteria.`;
+
+    renderComparisonRadar(analysis, selectedGroups);
+    renderComparisonTable(analysis, selectedGroups);
+  }
+
+  function renderFacultyComparisonControls(availableFaculties) {
+    const selectA = byId('facultyCompareA');
+    const selectB = byId('facultyCompareB');
+    const options = ['<option value="">Select faculty</option>']
+      .concat(availableFaculties.map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`))
+      .join('');
+
+    selectA.innerHTML = options;
+    selectB.innerHTML = options;
+
+    const selection = resolveComparisonSelection(availableFaculties);
+    selectA.value = selection.facultyA || '';
+    selectB.value = selection.facultyB || '';
+
+    const disabled = availableFaculties.length === 0;
+    selectA.disabled = disabled;
+    selectB.disabled = disabled;
+    byId('swapFacultyBtn').disabled = disabled;
+  }
+
+  function resolveComparisonSelection(availableFaculties) {
+    const available = availableFaculties || [];
+    let facultyA = state.comparison.facultyA;
+    let facultyB = state.comparison.facultyB;
+
+    if (!available.includes(facultyA)) facultyA = available[0] || '';
+    if (!available.includes(facultyB) || facultyB === facultyA) facultyB = available[1] || facultyA || '';
+    if (!facultyA) facultyA = available[0] || '';
+    if (!facultyB) facultyB = available[1] || facultyA || '';
+
+    state.comparison = { facultyA, facultyB };
+    return state.comparison;
+  }
+
+  function renderComparisonRadar(analysis, selectedGroups) {
+    if (!chartAvailable('compareChart')) return;
+    const theme = getThemeColors();
+    const defaults = buildChartDefaults();
+    const labels = analysis.questionStats.map(question => shortLabel(question.header, 34));
+    const datasets = selectedGroups.map((group, index) => ({
+      label: group.label,
+      data: analysis.questionStats.map(question => {
+        const groupQuestion = group.questions.get(question.index);
+        return groupQuestion ? groupQuestion.average : NaN;
+      }),
+      backgroundColor: `${palette(index)}22`,
+      borderColor: palette(index),
+      borderWidth: 2,
+      pointBackgroundColor: palette(index),
+      pointRadius: 4,
+      fill: true
+    }));
+
+    const ctx = byId('compareChart').getContext('2d');
+    state.charts.compare = new Chart(ctx, {
+      type: 'radar',
+      data: { labels, datasets },
+      options: {
+        ...defaults,
+        plugins: {
+          ...defaults.plugins,
+          legend: { display: datasets.length > 1, position: 'bottom', labels: { color: theme.muted, boxWidth: 10, font: { size: 11 } } }
+        },
+        scales: {
+          r: {
+            min: 0,
+            max: 5,
+            ticks: { stepSize: 1, color: theme.muted, font: { size: 9 }, backdropColor: 'transparent' },
+            grid: { color: theme.grid },
+            angleLines: { color: theme.grid },
+            pointLabels: { color: theme.muted, font: { size: 10 } }
+          }
+        }
+      }
+    });
+  }
+
+  function renderComparisonTable(analysis, selectedGroups) {
+    const container = byId('comparisonTable');
+    if (!selectedGroups.length || analysis.questionStats.length === 0) {
+      container.innerHTML = '<div class="no-data">Choose two faculties to compare.</div>';
+      return;
+    }
+
+    const primary = selectedGroups[0];
+    const secondary = selectedGroups[1] || selectedGroups[0];
+    let html = `<table class="compare-table">
+      <thead><tr>
+        <th style="width:34%">Criterion</th>
+        <th>${escapeHtml(shortLabel(primary.label, 24))}</th>
+        <th>${escapeHtml(shortLabel(secondary.label, 24))}</th>
+        <th>Gap</th>
+      </tr></thead><tbody>`;
+
+    analysis.questionStats.forEach(question => {
+      const first = primary.questions.get(question.index);
+      const second = secondary.questions.get(question.index);
+      const gap = Number.isFinite(first?.average) && Number.isFinite(second?.average) ? first.average - second.average : NaN;
+      html += `<tr>
+        <td style="color:var(--text)">${escapeHtml(question.header)}</td>
+        <td>${scoreCell(first ? first.average : NaN)}</td>
+        <td>${scoreCell(second ? second.average : NaN)}</td>
+        <td>${Number.isFinite(gap) ? `<span class="score-badge ${gap > 0 ? 'score-high' : gap < 0 ? 'score-low' : 'score-none'}">${gap > 0 ? '+' : ''}${formatNumber(gap, 2)}</span>` : '<span class="score-badge score-none">-</span>'}</td>
+      </tr>`;
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  }
+
+  function scoreCell(value) {
+    const width = Number.isFinite(value) ? Math.max(0, Math.min(100, (value / 5) * 100)) : 0;
+    return `
+      <div class="bar-inline">
+        <div class="bar-track">
+          <div class="bar-fill" style="width:${width}%;background:${scoreColor(value)}"></div>
+        </div>
+        <span class="score-badge ${scoreClass(value)}">${formatNumber(value, 2)}</span>
+      </div>
+    `;
+  }
+
+  function legacyBuildQuestionStatsByGroup(rows, groupIndex) {
+    const groups = new Map();
+    rows.forEach(row => {
+      const label = normalizeCell(row[groupIndex]);
+      if (!label) return;
+      if (!groups.has(label)) {
+        groups.set(label, {
+          label,
+          questions: new Map()
+        });
+      }
+      const group = groups.get(label);
+      state.mapping.ratingIndexes.forEach(index => {
+        const rating = parseRating(row[index]);
+        if (rating === null) return;
+        if (!group.questions.has(index)) {
+          group.questions.set(index, { sum: 0, count: 0, average: NaN });
+        }
+        const question = group.questions.get(index);
+        question.sum += rating;
+        question.count += 1;
+      });
+    });
+
+    return Array.from(groups.values()).map(group => {
+      group.questions.forEach(question => {
+        question.average = averageFromStats(question.sum, question.count);
+      });
+      return group;
+    }).sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  function legacyRenderCategoryCards(analysis) {
+    const container = byId('categoryCards');
+    const categories = analysis.categoryStats.filter(stat => stat.questions.length > 0);
+
+    if (categories.length === 0) {
+      container.innerHTML = '<div class="chart-card"><div class="no-data">No category data. Select rating question columns first.</div></div>';
+      return;
+    }
+
+    container.innerHTML = categories.map((category, index) => `
+      <div class="analysis-card">
+        <h3>${escapeHtml(category.name)}<span>${formatNumber(category.average, 2)} average across ${category.count} student responses</span></h3>
+        <div class="chart-wrap" style="height:240px"><canvas id="categoryChart${index}"></canvas></div>
+      </div>
+    `).join('');
+
+    categories.forEach((category, index) => {
+      const canvasId = `categoryChart${index}`;
+      if (!chartAvailable(canvasId)) return;
+      const theme = getThemeColors();
+      const defaults = buildChartDefaults();
+      const ctx = byId(canvasId).getContext('2d');
+      state.charts[`category${index}`] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: category.questions.map(question => shortLabel(question.header, 34)),
+          datasets: [{
+            data: category.questions.map(question => question.average),
+            backgroundColor: palette(index) + 'bb',
+            borderColor: palette(index),
+            borderWidth: 1,
+            borderRadius: 4,
+            borderSkipped: false
+          }]
+        },
+        options: {
+          ...defaults,
+          scales: {
+            x: { ticks: { color: theme.muted, font: { size: 9 }, maxRotation: 35 }, grid: { display: false } },
+            y: { min: 0, max: 5, ticks: { color: theme.muted, font: { size: 9 }, stepSize: 1 }, grid: { color: theme.grid } }
+          }
+        }
+      });
+    });
+  }
+
+  function renderCriteriaHeatmap(analysis) {
+    const container = byId('questionsTable');
+    const groupIndex = state.mapping.facultyIndex !== null ? state.mapping.facultyIndex : state.mapping.classIndex;
+    const groupLabel = state.mapping.facultyIndex !== null ? 'Faculty' : 'Class';
+
+    if (analysis.questionStats.length === 0 || groupIndex === null) {
+      container.innerHTML = '<div class="no-data">Select rating criteria and a faculty or class column to build the heatmap.</div>';
+      return;
+    }
+
+    const groups = buildQuestionStatsByGroup(getFilteredRows(), groupIndex);
+    if (!groups.length) {
+      container.innerHTML = '<div class="no-data">No grouped data available for the current filters.</div>';
+      return;
+    }
+
+    let html = `<table class="heatmap-table">
+      <thead><tr>
+        <th style="width:34%">Criterion</th>`;
+
+    groups.forEach(group => {
+      html += `<th>${escapeHtml(shortLabel(group.label, 24))}</th>`;
+    });
+
+    html += `</tr></thead><tbody>`;
+
+    analysis.questionStats.forEach(question => {
+      html += `<tr><td style="color:var(--text)">${escapeHtml(question.header)}</td>`;
+      groups.forEach(group => {
+        const groupQuestion = group.questions.get(question.index);
+        const value = groupQuestion ? groupQuestion.average : NaN;
+        html += `<td class="heatmap-cell ${scoreClass(value)}" title="${escapeHtml(groupLabel)}: ${escapeHtml(group.label)}">${formatNumber(value, 2)}</td>`;
+      });
+      html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  }
+
+  function renderCourseCharts(analysis) {
+    renderCourseChart(analysis);
+    renderResponseChart(analysis);
+    renderPolarityChart(analysis);
+  }
+
+  function renderCourseChart(analysis) {
+    if (!chartAvailable('courseChart')) return;
+    const theme = getThemeColors();
+    const groups = analysis.pairStats;
+    const defaults = buildChartDefaults();
+    const ctx = byId('courseChart').getContext('2d');
+    state.charts.course = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: groups.map(group => shortLabel(group.label, 46)),
+        datasets: [{
+          data: groups.map(group => group.average),
+          backgroundColor: groups.map((_, index) => palette(index) + 'cc'),
+          borderColor: groups.map((_, index) => palette(index)),
+          borderWidth: 1,
+          borderRadius: 5,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        ...defaults,
+        scales: {
+          x: { ticks: { color: theme.muted, font: { size: 10 }, maxRotation: 35 }, grid: { display: false } },
+          y: { min: 0, max: 5, ticks: { color: theme.muted, font: { size: 10 }, stepSize: 1 }, grid: { color: theme.grid } }
+        }
+      }
+    });
+  }
+
+  function renderResponseChart(analysis) {
+    if (!chartAvailable('responseChart')) return;
+    const theme = getThemeColors();
+    const groups = analysis.classStats.length ? analysis.classStats : analysis.facultyStats;
+    const ctx = byId('responseChart').getContext('2d');
+    const defaults = buildChartDefaults();
+    state.charts.response = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: groups.map(group => shortLabel(group.label, 32)),
+        datasets: [{
+          data: groups.map(group => group.responseCount),
+          backgroundColor: groups.map((_, index) => palette(index) + 'bb'),
+          borderColor: theme.surface,
+          borderWidth: 2
+        }]
+      },
+      options: {
+        ...defaults,
+        plugins: {
+          ...defaults.plugins,
+          legend: { position: 'bottom', labels: { color: theme.muted, font: { size: 10 }, boxWidth: 10 } }
+        }
+      }
+    });
+  }
+
+  function renderPolarityChart(analysis) {
+    if (!chartAvailable('polarityChart')) return;
+    const theme = getThemeColors();
+    const groups = analysis.facultyStats.length ? analysis.facultyStats : analysis.classStats;
+    const defaults = buildChartDefaults();
+
+    const ctx = byId('polarityChart').getContext('2d');
+    state.charts.polarity = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: groups.map(group => shortLabel(group.label, 24)),
+        datasets: [{
+          label: 'Average Rating',
+          data: groups.map(group => group.average),
+          backgroundColor: groups.map((_, index) => palette(index) + 'cc'),
+          borderColor: groups.map((_, index) => palette(index)),
+          borderWidth: 1,
+          borderRadius: 4,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        ...defaults,
+        plugins: {
+          ...defaults.plugins,
+          legend: { display: false }
+        },
+        scales: {
+          x: { ticks: { color: theme.muted, font: { size: 11 } }, grid: { display: false } },
+          y: { min: 0, max: 5, ticks: { color: theme.muted, font: { size: 10 }, stepSize: 1 }, grid: { color: theme.grid } }
+        }
+      }
+    });
+  }
+
+  function renderSuggestions(analysis) {
+    const countText = byId('suggestionCountText');
+    const list = byId('suggestionsList');
+    const insight = byId('insightBox');
+
+    countText.textContent = `${analysis.suggestions.length} suggestion/comment rows shown.`;
+
+    if (analysis.suggestions.length === 0) {
+      list.innerHTML = '<div class="no-data">No suggestions for the current filters, or no suggestion column selected.</div>';
+      insight.innerHTML = '<strong>Suggestion summary:</strong> No suggestion text is available for the current filters.';
+      return;
+    }
+
+    list.innerHTML = analysis.suggestions.map(item => {
+      const meta = [
+        item.faculty ? `<span class="tag">${escapeHtml(item.faculty)}</span>` : '',
+        item.className ? `<span>${escapeHtml(item.className)}</span>` : ''
+      ].filter(Boolean).join('');
+      const ratingLabel = Number.isFinite(item.averageRating) ? formatNumber(item.averageRating, 2) : '-';
+      const ratingClass = scoreClass(item.averageRating);
+
+      return `
+        <div class="suggestion-item">
+          <div class="suggestion-meta">${meta || '<span>Student comment</span>'}</div>
+          <div class="suggestion-meta">
+            <span class="tag ${ratingClass}">Avg rating: ${ratingLabel}</span>
+          </div>
+          <div class="suggestion-text">${escapeHtml(item.text)}</div>
+        </div>
+      `;
+    }).join('');
+
+    const negative = analysis.suggestions.filter(item => /improve|not good|lacking|bad|wrong|boring|ppt|unclear|doubt/i.test(item.text)).length;
+    const positive = analysis.suggestions.filter(item => /good|great|well|clear|continue|excellent|nice|best/i.test(item.text)).length;
+    insight.innerHTML = `
+      <strong>Simple text scan from ${analysis.suggestions.length} comments:</strong>
+      ${negative} mention concern keywords and ${positive} mention positive keywords.
+      This summary is only keyword-based; the original comments above are preserved as the source of truth.
+    `;
+  }
+
+  function renderNoDataViews(message) {
+    const noData = `<div class="no-data">${escapeHtml(message)}</div>`;
+    byId('strengthsList').innerHTML = noData;
+    byId('focusAreasList').innerHTML = noData;
+    byId('categoryCards').innerHTML = `<div class="analysis-card">${noData}</div>`;
+    byId('questionsTable').innerHTML = noData;
+    byId('comparisonTable').innerHTML = noData;
+    byId('comparisonSummary').textContent = message;
+    byId('suggestionsList').innerHTML = noData;
+    byId('suggestionCountText').textContent = 'No suggestions loaded.';
+    byId('insightBox').innerHTML = `<strong>Suggestion summary:</strong> ${escapeHtml(message)}`;
+  }
+
+  function buildQuestionStatsByGroup(rows, groupIndex) {
+    const groups = new Map();
+    rows.forEach(row => {
+      const label = normalizeCell(row[groupIndex]);
+      if (!label) return;
+      if (!groups.has(label)) {
+        groups.set(label, {
+          label,
+          questions: new Map()
+        });
+      }
+      const group = groups.get(label);
+      state.mapping.ratingIndexes.forEach(index => {
+        const rating = parseRating(row[index]);
+        if (rating === null) return;
+        if (!group.questions.has(index)) {
+          group.questions.set(index, { sum: 0, count: 0, average: NaN });
+        }
+        const question = group.questions.get(index);
+        question.sum += rating;
+        question.count += 1;
+      });
+    });
+
+    return Array.from(groups.values()).map(group => {
+      group.questions.forEach(question => {
+        question.average = averageFromStats(question.sum, question.count);
+      });
+      return group;
+    }).sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  function renderCategoryCards(analysis) {
+    const container = byId('categoryCards');
+    const categories = analysis.categoryStats.filter(stat => stat.questions.length > 0);
+
+    if (categories.length === 0) {
+      container.innerHTML = '<div class="chart-card"><div class="no-data">No category data. Select rating question columns first.</div></div>';
+      return;
+    }
+
+    container.innerHTML = categories.map((category, index) => `
+      <div class="chart-card">
+        <div class="card-title">${escapeHtml(category.name)}<span>${formatNumber(category.average, 2)} average across selected criteria</span></div>
+        <div class="chart-wrap" style="height:240px"><canvas id="categoryChart${index}"></canvas></div>
+      </div>
+    `).join('');
+
+    categories.forEach((category, index) => {
+      const canvasId = `categoryChart${index}`;
+      if (!chartAvailable(canvasId)) return;
+      const ctx = byId(canvasId).getContext('2d');
+      state.charts[`category${index}`] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: category.questions.map(question => shortLabel(question.header, 34)),
+          datasets: [{
+            data: category.questions.map(question => question.average),
+            backgroundColor: palette(index) + 'bb',
+            borderColor: palette(index),
+            borderWidth: 1,
+            borderRadius: 4,
+            borderSkipped: false
+          }]
+        },
+        options: {
+          ...CHART_DEFAULTS,
+          scales: {
+            x: { ticks: { color: '#8a8a9a', font: { size: 9 }, maxRotation: 35 }, grid: { display: false } },
+            y: { min: 0, max: 5, ticks: { color: '#8a8a9a', font: { size: 9 }, stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.04)' } }
+          }
+        }
+      });
+    });
+  }
+
+  function legacyRenderQuestionsTable(analysis) {
+    const groups = state.mapping.facultyIndex === null ? [] : buildQuestionStatsByGroup(getFilteredRows(), state.mapping.facultyIndex);
+
+    if (analysis.questionStats.length === 0) {
+      byId('questionsTable').innerHTML = '<div class="no-data">No rating questions selected.</div>';
+      return;
+    }
+
+    let html = `<table class="compare-table">
+      <thead><tr>
+        <th style="width:34%">Criterion</th>
+        <th>Selected Avg</th>
+        <th>Valid Ratings</th>`;
+
+    groups.forEach(group => {
+      html += `<th>${escapeHtml(shortLabel(group.label, 24))}</th>`;
+    });
+
+    html += '</tr></thead><tbody>';
+
+    analysis.questionStats.forEach(question => {
+      html += `<tr>
+        <td style="color:var(--text)">${escapeHtml(question.header)}</td>
+        <td>${scoreCell(question.average)}</td>
+        <td>${question.count}</td>`;
+
+      groups.forEach(group => {
+        const groupQuestion = group.questions.get(question.index);
+        html += `<td>${scoreCell(groupQuestion ? groupQuestion.average : NaN)}</td>`;
+      });
+
+      html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    byId('questionsTable').innerHTML = html;
+  }
+
+  function legacyScoreCell(value) {
+    const width = Number.isFinite(value) ? Math.max(0, Math.min(100, (value / 5) * 100)) : 0;
+    return `
+      <div class="bar-inline">
+        <div class="bar-track">
+          <div class="bar-fill" style="width:${width}%;background:${scoreColor(value)}"></div>
+        </div>
+        <span class="score-badge ${scoreClass(value)}">${formatNumber(value, 2)}</span>
+      </div>
+    `;
+  }
+
+  function legacyRenderCourseCharts(analysis) {
+    renderCourseChart(analysis);
+    renderResponseChart(analysis);
+    renderPolarityChart(analysis);
+  }
+
+  function legacyRenderCourseChart(analysis) {
+    if (!chartAvailable('courseChart')) return;
+    const groups = analysis.pairStats;
+    const ctx = byId('courseChart').getContext('2d');
+    state.charts.course = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: groups.map(group => shortLabel(group.label, 46)),
+        datasets: [{
+          data: groups.map(group => group.average),
+          backgroundColor: groups.map((_, index) => palette(index) + 'cc'),
+          borderColor: groups.map((_, index) => palette(index)),
+          borderWidth: 1,
+          borderRadius: 5,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        ...CHART_DEFAULTS,
+        scales: {
+          x: { ticks: { color: '#8a8a9a', font: { size: 10 }, maxRotation: 35 }, grid: { display: false } },
+          y: { min: 0, max: 5, ticks: { color: '#8a8a9a', font: { size: 10 }, stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.04)' } }
+        }
+      }
+    });
+  }
+
+  function legacyRenderResponseChart(analysis) {
+    if (!chartAvailable('responseChart')) return;
+    const groups = analysis.classStats.length ? analysis.classStats : analysis.facultyStats;
+    const ctx = byId('responseChart').getContext('2d');
+    state.charts.response = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: groups.map(group => shortLabel(group.label, 32)),
+        datasets: [{
+          data: groups.map(group => group.responseCount),
+          backgroundColor: groups.map((_, index) => palette(index) + 'bb'),
+          borderColor: '#0f0f13',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#8a8a9a', font: { size: 10 }, boxWidth: 10 } },
+          tooltip: CHART_DEFAULTS.plugins.tooltip
+        }
+      }
+    });
+  }
+
+  function legacyRenderPolarityChart(analysis) {
+    if (!chartAvailable('polarityChart')) return;
+    const groups = analysis.facultyStats.length ? analysis.facultyStats : analysis.classStats;
+    const lowData = groups.map(group => pct(group.dist[1], group.ratingCount));
+    const highData = groups.map(group => pct(group.dist[4] + group.dist[5], group.ratingCount));
+
+    const ctx = byId('polarityChart').getContext('2d');
+    state.charts.polarity = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: groups.map(group => shortLabel(group.label, 24)),
+        datasets: [
+          { label: '% Poor (1)', data: lowData, backgroundColor: '#e87c7c99', borderColor: '#e87c7c', borderWidth: 1, borderRadius: 4, borderSkipped: false },
+          { label: '% Good/Excellent (4-5)', data: highData, backgroundColor: '#7ce8a899', borderColor: '#7ce8a8', borderWidth: 1, borderRadius: 4, borderSkipped: false }
+        ]
+      },
+      options: {
+        ...CHART_DEFAULTS,
+        plugins: { ...CHART_DEFAULTS.plugins, legend: { display: true, labels: { color: '#8a8a9a', boxWidth: 10, font: { size: 11 } } } },
+        scales: {
+          x: { ticks: { color: '#8a8a9a', font: { size: 11 } }, grid: { display: false } },
+          y: { min: 0, max: 100, ticks: { color: '#8a8a9a', font: { size: 10 }, callback: value => `${value}%` }, grid: { color: 'rgba(255,255,255,0.04)' } }
+        }
+      }
+    });
+  }
+
+  function legacyRenderSuggestions(analysis) {
+    const countText = byId('suggestionCountText');
+    const list = byId('suggestionsList');
+    const insight = byId('insightBox');
+
+    countText.textContent = `${analysis.suggestions.length} suggestion/comment rows shown. Text is displayed exactly from the sheet except safe HTML escaping.`;
+
+    if (analysis.suggestions.length === 0) {
+      list.innerHTML = '<div class="no-data">No suggestions for the current filters, or no suggestion column selected.</div>';
+      insight.innerHTML = '<strong>Suggestion summary:</strong> No suggestion text is available for the current filters.';
+      return;
+    }
+
+    list.innerHTML = analysis.suggestions.map(item => {
+      const meta = [
+        item.faculty ? `<span class="tag">${escapeHtml(item.faculty)}</span>` : '',
+        item.className ? `<span>${escapeHtml(item.className)}</span>` : ''
+      ].filter(Boolean).join('');
+
+      return `
+        <div class="suggestion-item">
+          <div class="suggestion-meta">${meta || '<span>Student comment</span>'}</div>
+          <div class="suggestion-text">${escapeHtml(item.text)}</div>
+        </div>
+      `;
+    }).join('');
+
+    const negative = analysis.suggestions.filter(item => /improve|not good|lacking|bad|wrong|boring|ppt|unclear|doubt/i.test(item.text)).length;
+    const positive = analysis.suggestions.filter(item => /good|great|well|clear|continue|excellent|nice|best/i.test(item.text)).length;
+    insight.innerHTML = `
+      <strong>Simple text scan from ${analysis.suggestions.length} comments:</strong>
+      ${negative} mention concern keywords and ${positive} mention positive keywords.
+      This summary is only keyword-based; the original comments above are preserved as the source of truth.
+    `;
+  }
+
+  function legacyRenderNoDataViews(message) {
+    const noData = `<div class="no-data">${escapeHtml(message)}</div>`;
+    byId('categoryCards').innerHTML = `<div class="chart-card">${noData}</div>`;
+    byId('questionsTable').innerHTML = noData;
+    byId('suggestionsList').innerHTML = noData;
+    byId('suggestionCountText').textContent = 'No suggestions loaded.';
+    byId('insightBox').innerHTML = `<strong>Suggestion summary:</strong> ${escapeHtml(message)}`;
+  }
+
+  function shortLabel(text, maxLength) {
+    const value = normalizeCell(text);
+    if (value.length <= maxLength) return value;
+    return `${value.slice(0, Math.max(0, maxLength - 1))}...`;
+  }
+
+  function resetFilters() {
+    state.filters = { faculty: 'All', className: 'All' };
+    renderFilters();
+    renderAll();
+  }
+
+  function clearDashboard() {
+    state.sourceLink = '';
+    state.sourceCsvUrl = '';
+    state.headers = [];
+    state.rows = [];
+    state.mapping = { facultyIndex: null, classIndex: null, suggestionIndex: null, ratingIndexes: [] };
+    state.filters = { faculty: 'All', className: 'All' };
+    state.comparison = { facultyA: '', facultyB: '' };
+    state.columnSummary = '';
+    state.currentAnalysis = null;
+    destroyAllCharts();
+    persistSourceLink('');
+
+    byId('sourceLink').value = '';
+    byId('headerSummary').textContent = 'Paste a public Google Sheets link, direct CSV link, or direct XLSX link to build the dashboard from student response rows.';
+    const emptyState = byId('emptyState');
+    if (emptyState) emptyState.hidden = false;
+    byId('dashboardShell').hidden = true;
+    byId('mappingPanel').hidden = true;
+    byId('filterPanel').hidden = true;
+    byId('refreshBtn').disabled = true;
+    byId('exportPdfBtn').disabled = true;
+    clearStatus();
+  }
+
+  function exportPdfReport() {
+    if (!state.currentAnalysis || !isMappingUsable(state.mapping)) {
+      setStatus('error', 'Load a sheet before exporting the PDF report.');
+      return;
+    }
+
+    document.body.classList.add('printing-report');
+    setStatus('ok', 'Opening print dialog. Choose "Save as PDF" as the destination to export the full report.');
+
+    const cleanup = () => {
+      document.body.classList.remove('printing-report');
+      Object.values(state.charts).forEach(chart => chart.resize());
+    };
+
+    window.addEventListener('afterprint', cleanup, { once: true });
+    setTimeout(() => {
+      Object.values(state.charts).forEach(chart => chart.resize());
+      window.print();
+    }, 250);
+    setTimeout(cleanup, 5000);
+  }
+
+  async function copyShownSuggestions() {
+    const suggestions = state.currentAnalysis ? state.currentAnalysis.suggestions : [];
+    if (!suggestions.length) {
+      setStatus('error', 'No visible suggestions to copy.');
+      return;
+    }
+
+    const text = suggestions.map(item => item.text).join('\n\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      setStatus('ok', `Copied ${suggestions.length} suggestions exactly as shown.`);
+    } catch (error) {
+      setStatus('error', 'Clipboard copy was blocked by the browser. Select the comments manually from the Suggestions tab.');
+    }
+  }
+
+  function handleFilterChange() {
+    state.filters.faculty = byId('facultyFilter').value || 'All';
+    state.filters.className = byId('classFilter').value || 'All';
+    renderAll();
+  }
+
+  function handleComparisonChange() {
+    state.comparison.facultyA = byId('facultyCompareA').value || '';
+    state.comparison.facultyB = byId('facultyCompareB').value || '';
+    if (state.currentAnalysis) {
+      renderFacultyComparison(state.currentAnalysis);
+    }
+  }
+
+  function swapComparisonFaculties() {
+    const nextA = byId('facultyCompareA').value || '';
+    const nextB = byId('facultyCompareB').value || '';
+    byId('facultyCompareA').value = nextB;
+    byId('facultyCompareB').value = nextA;
+    handleComparisonChange();
+  }
+
+  function attachEvents() {
+    byId('loadBtn').addEventListener('click', loadSourceFromInput);
+    byId('refreshBtn').addEventListener('click', refreshCurrentSource);
+    byId('exportPdfBtn').addEventListener('click', exportPdfReport);
+    byId('clearBtn').addEventListener('click', clearDashboard);
+    byId('themeToggleBtn').addEventListener('click', toggleTheme);
+    byId('applyMappingBtn').addEventListener('click', applyColumnMapping);
+    byId('autoDetectBtn').addEventListener('click', autoDetectAgain);
+    byId('facultyFilter').addEventListener('change', handleFilterChange);
+    byId('classFilter').addEventListener('change', handleFilterChange);
+    byId('resetFiltersBtn').addEventListener('click', resetFilters);
+    byId('copySuggestionsBtn').addEventListener('click', copyShownSuggestions);
+    byId('facultyCompareA').addEventListener('change', handleComparisonChange);
+    byId('facultyCompareB').addEventListener('change', handleComparisonChange);
+    byId('swapFacultyBtn').addEventListener('click', swapComparisonFaculties);
+    byId('sourceLink').addEventListener('input', event => {
+      const link = normalizeCell(event.target.value);
+      state.sourceLink = link;
+      persistSourceLink(link);
+      byId('refreshBtn').disabled = !link;
+    });
+    byId('sourceLink').addEventListener('keydown', event => {
+      if (event.key === 'Enter') loadSourceFromInput();
+    });
+
+    document.querySelectorAll('.tab-btn').forEach(button => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(item => item.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+        button.classList.add('active');
+        byId(`tab-${button.dataset.tab}`).classList.add('active');
+        setTimeout(() => Object.values(state.charts).forEach(chart => chart.resize()), 80);
+      });
+    });
+  }
+
+  function runCalculationSelfTest() {
+    const headers = ['Faculty Name', 'Class Name', 'Question 1', 'Question 2', 'Suggestions'];
+    const rows = [
+      ['Faculty A', 'Class 1', '5', '4', 'Keep doing this.'],
+      ['Faculty A', 'Class 1', '1', '', 'Need more examples.'],
+      ['Faculty B', 'Class 2', '3', '2', '']
+    ];
+    const mapping = { facultyIndex: 0, classIndex: 1, suggestionIndex: 4, ratingIndexes: [2, 3] };
+    const analysis = computeAnalysis(rows, mapping, headers);
+    const allowed = applyExpectedColumnWhitelist(
+      ['Timestamp', 'Course Name', 'Faculty Name', 'Use of real life examples', 'Makes subject interesting', 'Any suggestions for improvement'],
+      [
+        ['ignored', 'Class 1', 'Faculty A', '5', '4', 'Keep doing this.'],
+        ['ignored', 'Class 1', 'Faculty A', '1', '', 'Need more examples.']
+      ]
+    );
+    const checks = [
+      analysis.responseCount === 3,
+      analysis.ratingCount === 5,
+      analysis.ratingSum === 15,
+      analysis.overallAverage === 3,
+      analysis.averageRating === 3,
+      analysis.rowSummaries.length === 3,
+      analysis.rowSummaries[0].average === 4.5,
+      analysis.dist[1] === 1 && analysis.dist[2] === 1 && analysis.dist[3] === 1 && analysis.dist[4] === 1 && analysis.dist[5] === 1,
+      analysis.studentRatingDist[1] === 1 && analysis.studentRatingDist[3] === 1 && analysis.studentRatingDist[5] === 1,
+      analysis.suggestionCount === 2,
+      analysis.suggestions.length === 2,
+      analysis.suggestions[1].text === 'Need more examples.',
+      analysis.suggestions[0].averageRating === 4.5,
+      allowed.headers.length === 5,
+      allowed.headers[0] === 'Course Name',
+      allowed.rows[0][0] === 'Class 1',
+      allowed.rows[0][4] === 'Keep doing this.'
+    ];
+
+    if (!checks.every(Boolean)) {
+      console.error('Calculation self-test failed', analysis, checks);
+    } else {
+      console.info('Calculation self-test passed.');
+    }
+  }
+
+  applyTheme(loadStoredTheme(), false);
+  attachEvents();
+  restoreSourceLink();
+  runCalculationSelfTest();
+</script>
+</body>
+</html>
