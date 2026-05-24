@@ -1155,20 +1155,7 @@
           <div class="overview-list" id="focusAreasList"></div>
         </div>
       </div>
-      <div class="charts-grid">
-        <div class="chart-card">
-          <div class="card-title">Overall Student Rating Distribution<span>Count of students by average rating</span></div>
-          <div class="chart-wrap" style="height:320px"><canvas id="overviewDistChart"></canvas></div>
-          <p class="scale-note">Each student response row is bucketed by its average rating across the selected criteria.</p>
-        </div>
-        <div class="chart-card">
-          <div class="card-title">Top / Bottom Criteria<span>Average ratings for the strongest and weakest questions</span></div>
-          <div class="chart-wrap" style="height:320px"><canvas id="overviewCriteriaChart"></canvas></div>
-          <p class="scale-note">Bars are pulled from the highest and lowest average criteria so the overview stays compact.</p>
-        </div>
-      </div>
-    </div>
-
+      
     <div class="tab-panel" id="tab-deep-analysis">
       <div class="charts-grid">
         <div class="chart-card">
@@ -1176,7 +1163,6 @@
           <div class="chart-wrap" style="height:240px"><canvas id="deepDistChart"></canvas></div>
         </div>
         <div class="chart-card">
-          <div class="card-title">Faculty Performance Radar<span>Average by detected feedback dimension</span></div>
           <div class="chart-wrap" style="height:240px"><canvas id="catRadarChart"></canvas></div>
         </div>
       </div>
@@ -1185,7 +1171,7 @@
 
     <div class="tab-panel" id="tab-heatmap">
       <div class="heatmap-panel">
-        <h3>Criteria Heatmap<span>Average ratings by criterion and faculty or class</span></h3>
+        <h3>Criteria Heatmap</h3>
         <div class="heatmap-legend">
           <span class="heatmap-chip">Green = stronger average</span>
           <span class="heatmap-chip">Amber = mid range</span>
@@ -1228,17 +1214,17 @@
     <div class="tab-panel" id="tab-course">
       <div class="charts-grid full">
         <div class="chart-card span-2">
-          <div class="card-title">Performance by Faculty and Class<span>Average rating per faculty-class group</span></div>
+          <div class="card-title">Performance by Faculty and Class</div>
           <div class="chart-wrap" style="height:320px"><canvas id="courseChart"></canvas></div>
         </div>
       </div>
       <div class="charts-grid">
         <div class="chart-card">
-          <div class="card-title">Response Count<span>Number of rows by class or faculty</span></div>
+          <div class="card-title">Response Count</div>
           <div class="chart-wrap" style="height:240px"><canvas id="responseChart"></canvas></div>
         </div>
         <div class="chart-card">
-          <div class="card-title">Average Rating by Group<span>Average score for the selected faculty or class grouping</span></div>
+          <div class="card-title">Average Rating by Group</div>
           <div class="chart-wrap" style="height:240px"><canvas id="polarityChart"></canvas></div>
         </div>
       </div>
@@ -2468,27 +2454,25 @@
       <div class="stat-card accent1">
         <div class="stat-label">Responses</div>
         <div class="stat-value">${analysis.responseCount}</div>
-        <div class="stat-sub">student response rows</div>
+        <div class="stat-sub">Total responses</div>
       </div>
       <div class="stat-card ${overallClass}">
         <div class="stat-label">Average Rating</div>
         <div class="stat-value">${formatNumber(analysis.averageRating, 2)}</div>
-        <div class="stat-sub">overall across selected criteria</div>
+        <div class="stat-sub">Overall rating</div>
       </div>
       <div class="stat-card accent2">
-        <div class="stat-label">Suggestions Written</div>
+        <div class="stat-label">Suggestions</div>
         <div class="stat-value">${analysis.suggestionCount}</div>
-        <div class="stat-sub">student comment rows</div>
+        <div class="stat-sub">Total suggestions</div>
       </div>
       <div class="stat-card accent3">
-        <div class="stat-label">Criteria Selected</div>
+        <div class="stat-label">Total Questions</div>
         <div class="stat-value">${analysis.questionStats.length}</div>
-        <div class="stat-sub">rating questions in use</div>
-      </div>
+             </div>
       <div class="stat-card warn">
-        <div class="stat-label">Faculty / Classes</div>
-        <div class="stat-value">${facultyShown} / ${classShown}</div>
-        <div class="stat-sub">visible in current filters</div>
+        <div class="stat-label">Classes</div>
+        <div class="stat-value">${classShown}</div>
       </div>
     `;
   }
@@ -3101,16 +3085,6 @@
         </div>
       `;
     }).join('');
-
-    const negative = analysis.suggestions.filter(item => /improve|not good|lacking|bad|wrong|boring|ppt|unclear|doubt/i.test(item.text)).length;
-    const positive = analysis.suggestions.filter(item => /good|great|well|clear|continue|excellent|nice|best/i.test(item.text)).length;
-    insight.innerHTML = `
-      <strong>Simple text scan from ${analysis.suggestions.length} comments:</strong>
-      ${negative} mention concern keywords and ${positive} mention positive keywords.
-      This summary is only keyword-based; the original comments above are preserved as the source of truth.
-    `;
-  }
-
   function renderNoDataViews(message) {
     const noData = `<div class="no-data">${escapeHtml(message)}</div>`;
     byId('strengthsList').innerHTML = noData;
@@ -3167,7 +3141,7 @@
 
     container.innerHTML = categories.map((category, index) => `
       <div class="chart-card">
-        <div class="card-title">${escapeHtml(category.name)}<span>${formatNumber(category.average, 2)} average across selected criteria</span></div>
+        <div class="card-title">${escapeHtml(category.name)}<span>${formatNumber(category.average, 2)} </span></div>
         <div class="chart-wrap" style="height:240px"><canvas id="categoryChart${index}"></canvas></div>
       </div>
     `).join('');
